@@ -1,0 +1,47 @@
+import { createClient } from '@/lib/supabase-server'
+import { NextRequest, NextResponse } from 'next/server'
+
+export async function POST(req: NextRequest) {
+  try {
+    const secret = req.headers.get('x-webhook-secret')
+    if (secret !== process.env.WEBHOOK_SECRET) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const body = await req.json()
+    const { project_id, status, clips, error_message } = body
+
+    if (!project_id) {
+      return NextResponse.json({ error: 'project_id required' }, { status: 400 })
+    }
+
+    const supabase = await createClient()
+
+    await supabase
+      .from('projects')
+      .update({
+        status,
+        error_message: error_message || null,
+        completed_at: status === 'completed' ? new Date().toISOString() : null,
+      })
+      .eq('id', project_id)
+
+    if (clips && clips.length > 0) {
+      const clipsToInsert = clips.map((clip: any, i: number) => ({
+        project_id,
+        clip_index: i + 1,
+        title: clip.title || `Clip ${i + 1}`,
+        duration: clip.duration || 0,
+        file_url: clip.file_url || null,
+        thumbnail_url: clip.thumbnail_url || null,
+        start_time: clip.start || 0,
+        end_time: clip.end || 0,
+      }))
+      await supabase.from('clips').insert(clipsToInsert)
+    }
+
+    return NextResponse.json({ success: true })
+  } catch (err) {
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
