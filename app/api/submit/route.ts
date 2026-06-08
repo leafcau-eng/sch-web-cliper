@@ -35,11 +35,11 @@ export async function POST(req: NextRequest) {
     }
 
     const ghRes = await fetch(
-      `https://api.github.com/repos/leafcau-eng/auto-clipper/actions/workflows/run-clipper.yml/dispatches`,
+      `https://api.github.com/repos/${process.env.GITHUB_OWNER}/${process.env.GITHUB_REPO}/actions/workflows/run-clipper.yml/dispatches`,
       {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${process.env.GH_PAT}`,
+          'Authorization': `Bearer ${process.env.GITHUB_PAT}`,
           'Accept': 'application/vnd.github+json',
           'Content-Type': 'application/json',
         },
