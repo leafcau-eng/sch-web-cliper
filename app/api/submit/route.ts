@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
       const filePath = `${user.id}/${Date.now()}.${ext}`
 
       const { error: uploadError } = await serviceClientUpload.storage
-        .from('videos')
+        .from('inputs')
         .upload(filePath, file, { contentType: file.type })
 
       if (uploadError) {
@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
       }
 
       const { data: urlData } = serviceClientUpload.storage
-        .from('videos')
+        .from('inputs')
         .getPublicUrl(filePath)
 
       url = urlData.publicUrl
