@@ -3,10 +3,12 @@ import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await context.params
     const supabase = await createClient()
+
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -15,7 +17,7 @@ export async function GET(
     const { data: project, error: projectError } = await supabase
       .from('projects')
       .select('*')
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('user_id', user.id)
       .single()
 
@@ -26,7 +28,7 @@ export async function GET(
     const { data: clips } = await supabase
       .from('clips')
       .select('*')
-      .eq('project_id', params.id)
+      .eq('project_id', id)
       .order('clip_index', { ascending: true })
 
     return NextResponse.json({ project, clips: clips || [] })
