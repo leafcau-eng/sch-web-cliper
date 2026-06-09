@@ -17,6 +17,7 @@ export default function Dashboard() {
   const router = useRouter()
   const [user, setUser] = useState<any>(null)
   const [url, setUrl] = useState('')
+  const [file, setFile] = useState<File | null>(null)
   const [loading, setLoading] = useState(false)
   const [projects, setProjects] = useState<Project[]>([])
   const [projectsLoading, setProjectsLoading] = useState(true)
@@ -49,17 +50,28 @@ export default function Dashboard() {
   }, [router, fetchProjects])
 
   const handleSubmit = async () => {
-    if (!url.trim()) return
+    if (!url.trim() && !file) return
     setLoading(true)
     try {
-      const res = await fetch('/api/submit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: url.trim() }),
-      })
+      let res
+      if (file) {
+        const formData = new FormData()
+        formData.append('file', file)
+        res = await fetch('/api/submit', {
+          method: 'POST',
+          body: formData,
+        })
+      } else {
+        res = await fetch('/api/submit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: url.trim() }),
+        })
+      }
       const data = await res.json()
       if (data.project_id) {
         setUrl('')
+        setFile(null)
         router.push(`/project/${data.project_id}`)
       } else {
         alert(data.error || 'Gagal memproses')
@@ -114,6 +126,8 @@ export default function Dashboard() {
         .url-input { width: 100%; background: #0d0d0d; border: 1px solid rgba(255,255,255,0.08); border-radius: 11px; padding: 13px 14px; font-size: 14px; color: #fff; font-family: 'DM Sans', sans-serif; outline: none; margin-bottom: 12px; }
         .url-input:focus { border-color: rgba(255,200,50,0.3); }
         .url-input::placeholder { color: rgba(255,255,255,0.18); }
+        .file-input-wrapper { width: 100%; background: #0d0d0d; border: 1px dashed rgba(255,255,255,0.12); border-radius: 11px; padding: 16px 14px; margin-bottom: 12px; cursor: pointer; transition: border-color 0.2s; text-align: center; }
+        .file-input-wrapper:hover { border-color: rgba(255,200,50,0.3); }
         .submit-btn { width: 100%; background: #FFC832; color: #000; border: none; padding: 14px; border-radius: 11px; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; font-family: 'DM Sans', sans-serif; display: flex; align-items: center; justify-content: center; gap: 8px; }
         .submit-btn:hover:not(:disabled) { background: #FFD966; transform: translateY(-1px); }
         .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -195,16 +209,46 @@ export default function Dashboard() {
 
           <div className="submit-card">
             <div style={{ fontFamily: 'Syne, sans-serif', fontSize: 20, fontWeight: 800, marginBottom: 5 }}>Buat Clips Baru ✨</div>
-            <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.35)', marginBottom: 20 }}>Paste link YouTube atau Google Drive</div>
+            <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.35)', marginBottom: 20 }}>Paste link YouTube / Google Drive atau upload video dari folder</div>
+
             <input
               className="url-input"
               type="text"
               placeholder="https://youtube.com/watch?v=... atau https://drive.google.com/..."
               value={url}
-              onChange={(e) => setUrl(e.target.value)}
+              onChange={(e) => { setUrl(e.target.value); setFile(null) }}
               onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
+              disabled={!!file}
             />
-            <button className="submit-btn" onClick={handleSubmit} disabled={loading || !url.trim()}>
+
+            <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.2)', fontSize: 12, margin: '4px 0 12px' }}>— atau —</div>
+
+            <label className="file-input-wrapper">
+              <input
+                type="file"
+                accept="video/*"
+                style={{ display: 'none' }}
+                onChange={(e) => { setFile(e.target.files?.[0] || null); setUrl('') }}
+              />
+              {file ? (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 18 }}>🎬</span>
+                  <span style={{ fontSize: 13, color: '#FFC832', fontWeight: 600 }}>{file.name}</span>
+                  <span
+                    onClick={(e) => { e.preventDefault(); setFile(null) }}
+                    style={{ fontSize: 11, color: 'rgba(255,85,85,0.8)', cursor: 'pointer', marginLeft: 4 }}
+                  >✕ hapus</span>
+                </div>
+              ) : (
+                <div>
+                  <div style={{ fontSize: 22, marginBottom: 6 }}>📂</div>
+                  <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', fontWeight: 500 }}>Klik untuk pilih video dari folder</div>
+                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.2)', marginTop: 4 }}>MP4, MOV, AVI, MKV didukung</div>
+                </div>
+              )}
+            </label>
+
+            <button className="submit-btn" onClick={handleSubmit} disabled={loading || (!url.trim() && !file)}>
               {loading ? <><div className="spinner" /> Memproses...</> : <>✨ Generate Clips Sekarang</>}
             </button>
           </div>

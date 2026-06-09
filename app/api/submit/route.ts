@@ -10,11 +10,38 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const body = await req.json()
-    const { url } = body
+    const contentType = req.headers.get('content-type') || ''
+    let url = ''
+    let fileName = ''
 
-    if (!url) {
-      return NextResponse.json({ error: 'URL required' }, { status: 400 })
+    if (contentType.includes('multipart/form-data')) {
+      const formData = await req.formData()
+      const file = formData.get('file') as File | null
+      if (!file) return NextResponse.json({ error: 'File required' }, { status: 400 })
+
+      const serviceClientUpload = createServiceClient()
+      const ext = file.name.split('.').pop()
+      const filePath = `${user.id}/${Date.now()}.${ext}`
+
+      const { error: uploadError } = await serviceClientUpload.storage
+        .from('videos')
+        .upload(filePath, file, { contentType: file.type })
+
+      if (uploadError) {
+        console.error('Upload error:', uploadError)
+        return NextResponse.json({ error: 'Gagal upload file' }, { status: 500 })
+      }
+
+      const { data: urlData } = serviceClientUpload.storage
+        .from('videos')
+        .getPublicUrl(filePath)
+
+      url = urlData.publicUrl
+      fileName = file.name
+    } else {
+      const body = await req.json()
+      url = body.url
+      if (!url) return NextResponse.json({ error: 'URL required' }, { status: 400 })
     }
 
     const serviceClient = createServiceClient()
@@ -23,7 +50,7 @@ export async function POST(req: NextRequest) {
       .from('projects')
       .insert({
         user_id: user.id,
-        title: `Project ${new Date().toLocaleDateString('id-ID')}`,
+        title: fileName ? fileName.replace(/\.[^/.]+$/, '') : `Project ${new Date().toLocaleDateString('id-ID')}`,
         source_url: url,
         status: 'queued',
         style: 'tiktok_viral',
