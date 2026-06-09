@@ -30,7 +30,7 @@ export default function Dashboard() {
     const data = await res.json()
     setLoading(false)
     setUrl('')
-    alert(data.message)
+    if (data.project_id) { router.push(`/project/${data.project_id}`) } else { alert(data.error || "Gagal memproses") }
   }
 
   const handleLogout = async () => {
