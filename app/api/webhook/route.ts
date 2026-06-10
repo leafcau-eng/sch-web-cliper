@@ -1,6 +1,25 @@
 import { createClient } from '@/lib/supabase-server'
 import { NextRequest, NextResponse } from 'next/server'
 
+async function sendTelegram(message: string) {
+  const token = process.env.TELEGRAM_BOT_TOKEN
+  const chatId = process.env.TELEGRAM_CHAT_ID
+  if (!token || !chatId) return
+  try {
+    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: message,
+        parse_mode: 'HTML',
+      }),
+    })
+  } catch (e) {
+    console.error('[telegram] Gagal kirim notif:', e)
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const secret = req.headers.get('x-webhook-secret')
@@ -16,6 +35,15 @@ export async function POST(req: NextRequest) {
     }
 
     const supabase = await createClient()
+
+    // Ambil info project buat notif
+    const { data: project } = await supabase
+      .from('projects')
+      .select('title, source_url')
+      .eq('id', project_id)
+      .single()
+
+    const projectTitle = project?.title || 'Untitled'
 
     const updateData: any = {
       status,
@@ -44,6 +72,26 @@ export async function POST(req: NextRequest) {
         end_time: clip.end || 0,
       }))
       await supabase.from('clips').insert(clipsToInsert)
+    }
+
+    // Kirim notif Telegram
+    if (status === 'failed') {
+      await sendTelegram(
+        `❌ <b>Project Gagal!</b>\n\n` +
+        `📁 <b>${projectTitle}</b>\n` +
+        `🔗 ${project?.source_url || '-'}\n\n` +
+        `⚠️ <b>Error:</b> ${error_message || 'Terjadi kesalahan tidak diketahui'}\n\n` +
+        `🆔 Project ID: <code>${project_id}</code>`
+      )
+    }
+
+    if (status === 'completed') {
+      await sendTelegram(
+        `✅ <b>Project Selesai!</b>\n\n` +
+        `📁 <b>${projectTitle}</b>\n` +
+        `🎬 <b>${clips?.length || 0} clips</b> berhasil dibuat\n\n` +
+        `🔗 https://sch-web-cliper.vercel.app/project/${project_id}`
+      )
     }
 
     return NextResponse.json({ success: true })
