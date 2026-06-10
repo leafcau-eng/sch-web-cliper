@@ -9,7 +9,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
-    const { project_id, status, clips, error_message } = body
+    const { project_id, status, current_step, clips, error_message } = body
 
     if (!project_id) {
       return NextResponse.json({ error: 'project_id required' }, { status: 400 })
@@ -17,13 +17,19 @@ export async function POST(req: NextRequest) {
 
     const supabase = await createClient()
 
+    const updateData: any = {
+      status,
+      error_message: error_message || null,
+      completed_at: status === 'completed' ? new Date().toISOString() : null,
+    }
+
+    if (current_step) {
+      updateData.current_step = current_step
+    }
+
     await supabase
       .from('projects')
-      .update({
-        status,
-        error_message: error_message || null,
-        completed_at: status === 'completed' ? new Date().toISOString() : null,
-      })
+      .update(updateData)
       .eq('id', project_id)
 
     if (clips && clips.length > 0) {
