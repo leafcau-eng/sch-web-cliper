@@ -10,7 +10,7 @@ export default async function handler(req, res) {
     }
 
     const response = await fetch(
-      "https://api.github.com/repos/leafcau-eng/auto-clipper/actions/workflows/run.yml/dispatches",
+      "https://api.github.com/repos/leafcau-eng/auto-clipper/actions/workflows/run-clipper.yml/dispatches",
       {
         method: "POST",
         headers: {
@@ -19,8 +19,8 @@ export default async function handler(req, res) {
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          ref: "v2",
-          inputs: { youtube_url: url }
+          ref: "main",
+          inputs: { url: url }
         })
       }
     );
